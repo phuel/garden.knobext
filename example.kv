@@ -1,9 +1,11 @@
+#:kivy 2.0
+
 <Main>
 GridLayout:
     pos: root.pos
     size: root.size
     cols: 3
-    spacing: 100
+    spacing: 50
     padding: 50
 
     Knob:
@@ -62,3 +64,51 @@ GridLayout:
         markeroff_color: 0.0, 0.0, .0, 1
         knobimg_size: 0.9
         marker_img: "img/bline3.png"
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: None, None
+        size: 200, 250
+        Knob:
+            id: testknob1
+            size_hint: None, None
+            size: 200, 200
+            value: 0
+            start_angle: 225
+            angle_range: 270
+            knobimg_source: "img/knob_black.png"
+            markeroff_color: 0.0, 0.0, 0.0, 1
+            marker_color: 1.0, 1.0, 0.0, 1
+            knobimg_size: 0.95
+            show_marker: self.focus
+        Label:
+            size_hint_y: None
+            height: 30
+            text: "%.2f" % testknob1.value
+            halign: 'center'
+            valign: 'center'
+            text_size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: None, None
+        size: 200, 250
+        Knob:
+            id: testknob2
+            size_hint: None, None
+            size: 200, 200
+            value: 0
+            start_angle: 225
+            angle_range: 270
+            knobimg_source: "img/knob_black.png"
+            markeroff_color: 0.0, 0.0, 0.0, 1
+            marker_color: 1.0, 0.6, 0.0, 1
+            knobimg_size: 0.95
+            show_marker: True
+        Label:
+            size_hint_y: None
+            height: 30
+            text: "%.2f" % testknob2.value
+            halign: 'center'
+            valign: 'center'
+            text_size: self.size

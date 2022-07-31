@@ -1,4 +1,6 @@
 """
+    Based on: https://github.com/kivy-garden/garden.knob
+
     Knob
     ====
 
@@ -10,17 +12,18 @@
     To configure a knob a max/min, slope and step values should be provided.
     Additionally, knobimg_source could be set to load
     a texture that visually represents the knob.
-
 """
+
 __all__     = ('Knob',)
-__version__ = '0.2'
+__version__ = '0.3ext'
 
 import math
 
 from kivy.lang          import  Builder
+from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.uix.widget    import  Widget
-from kivy.properties    import  NumericProperty, ObjectProperty, StringProperty,\
-                                BooleanProperty, ReferenceListProperty, BoundedNumericProperty,\
+from kivy.properties    import  NumericProperty, StringProperty,\
+                                BooleanProperty, BoundedNumericProperty,\
                                 ListProperty
 
 Builder.load_string('''
@@ -72,8 +75,8 @@ Builder.load_string('''
         Ellipse:
             pos: self.pos
             size: self.size[0], self.size[1]
-            angle_start: self.marker_startangle
-            angle_end: self._angle + self.marker_ahead if self._angle > self.marker_startangle else self.marker_startangle
+            angle_start: self.start_angle
+            angle_end: self._angle + self.marker_ahead if self._angle > self.start_angle else self.start_angle
             source: self.marker_img
 
         Color:
@@ -98,7 +101,7 @@ Builder.load_string('''
 
 ''')
 
-class Knob(Widget):
+class Knob(FocusBehavior, Widget):
     """Class for creating a Knob widget."""
 
     min = NumericProperty(0)
@@ -111,12 +114,6 @@ class Knob(Widget):
     '''Maximum value for value :attr:`value`.
     :attr:`max` is a :class:`~kivy.properties.NumericProperty` and defaults
     to 100.
-    '''
-
-    range = ReferenceListProperty(min, max)
-    ''' Range of the values for Knob.
-    :attr:`range` is a :class:`~kivy.properties.ReferenceListProperty` of
-    (:attr:`min`, :attr:`max`).
     '''
 
     value = NumericProperty(0)
@@ -215,16 +212,32 @@ class Knob(Widget):
     and defaults to 0.
     '''
 
-    _angle          = NumericProperty(0)            # Internal angle calculated from value.
-    _angle_step     = NumericProperty(0)            # Internal angle_step calculated from step.
+    start_angle = BoundedNumericProperty(0, max=360, min=0)
+    ''' The start of the allowed range of angles. For a traditional volume
+    knob this would be 225°.
+    :attr:`start_angle` is a :class:`~kivy.properties.BoundedNumericProperty`
+    and defaults to 0 (min=0, max=360).
+    '''
+    angle_range = BoundedNumericProperty(360, max=360, min=0)
+    ''' The allowed range this knob can be turned. 270° for a normal volume knob.
+    :attr:`angle_range` is a :class:`~kivy.properties.BoundedNumericProperty`
+    and defaults to 360 (min=0, max=360).
+    '''
+    
+    _angle = NumericProperty(0)            # Internal angle calculated from value.
 
     def __init__(self, *args, **kwargs):
+        self.is_focusable = kwargs.get('is_focusable', True)
         super(Knob, self).__init__(*args, **kwargs)
-        self.bind(show_marker   =   self._show_marker)
-        self.bind(value         =   self._value)
+        self.bind(show_marker = self._show_marker)
+        self.bind(value       = self._value)
+        self.bind(start_angle = lambda _,__: self._value(self, self.value))
+        self.bind(angle_range = lambda _,__: self._value(self, self.value))
+        self.selected = False
 
     def _value(self, instance, value):
-        self._angle     =   pow( (value - self.min)/(self.max - self.min), 1./self.curve) * 360.
+        angle = pow( (value - self.min)/(self.max - self.min), 1./self.curve) * self.angle_range
+        self.set_angle(angle)
         self.on_knob(value)
 
     def _show_marker(self, instance, flag):
@@ -241,18 +254,45 @@ class Knob(Widget):
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            self.update_angle(touch)
+            if touch.button == 'scrollup':
+                self.value -= self.step
+                self.focus = True
+            elif touch.button == 'scrolldown':
+                self.value += self.step
+                self.focus = True
+            else:    
+                self.selected = True
+                self.update_angle(touch)
+        super().on_touch_down(touch)
 
+    def on_touch_up(self, touch):
+        self.selected = False
+        super().on_touch_up(touch)
 
     def on_touch_move(self, touch):
-        if self.collide_point(*touch.pos):
+        if self.selected:
             self.update_angle(touch)
+        super().on_touch_move(touch)
 
+    def keyboard_on_key_down(self, window, keycode, text, modifiers):
+        if (keycode[1] == 'up' or keycode[1] == 'right') and self.value < self.max:
+            self.value += self.step
+        elif (keycode[1] == 'down' or keycode[1] == 'left') and self.value > self.min:
+            self.value -= self.step
+        return super().keyboard_on_key_down(window, keycode, text, modifiers)
 
     def update_angle(self, touch):
-        posx, posy          =   touch.pos
-        cx, cy              =   self.center
-        rx, ry              =   posx - cx, posy - cy
+        posx, posy = touch.pos
+        cx, cy     = self.center
+        relx, rely = posx - cx, posy - cy
+        # Don't change the angle after clicks in the middle third of the
+        # knob so that the knob can be focused with a center click.
+        if abs(relx) < self.width / 6 and abs(rely) < self.height / 6:
+            return
+        coss = math.cos(self.start_angle / 180.0 * math.pi)
+        sins = math.sin(self.start_angle / 180.0 * math.pi)
+        rx = relx * coss - rely * sins
+        ry = relx * sins + rely * coss
 
         if ry >= 0:                                 # Quadrants are clockwise.
             quadrant = 1 if rx >= 0 else 4
@@ -260,22 +300,30 @@ class Knob(Widget):
             quadrant = 3 if rx <= 0 else 2
 
         try:
-            angle    = math.atan(rx / ry) * (180./math.pi)
+            angle = math.atan(rx / ry) * (180.0 / math.pi)
             if quadrant == 2 or quadrant == 3:
                 angle = 180 + angle
             elif quadrant == 4:
                 angle = 360 + angle
-
         except:                                   # atan not def for angle 90 and 270
             angle = 90 if quadrant <= 2 else 270
+        self.set_angle(angle)
 
-        self._angle_step    =   (self.step*360)/(self.max - self.min)
-        self._angle         =   self._angle_step
-        while self._angle < angle:
-            self._angle     =   self._angle + self._angle_step
+    def set_angle(self, angle):
+        angle_step = (self.step * self.angle_range)/(self.max - self.min)
+        angle = int(angle / angle_step + 0.5) * angle_step
 
-        relativeValue   =   pow((angle/360.), 1./self.curve)
-        self.value      =   (relativeValue * (self.max - self.min)) + self.min
+        bottom_angle = 360 - (360 - self.angle_range) / 2
+        if angle < 0 or angle > bottom_angle:
+            angle = 0
+        if angle > self.angle_range:
+            angle = self.angle_range
+        self._angle = self.start_angle + angle
+
+        relativeValue = pow((angle / self.angle_range), 1.0 / self.curve)
+        self.value = (relativeValue * (self.max - self.min)) + self.min
+
+        self.marker_startangle = self.start_angle
 
 
     #TO OVERRIDE
