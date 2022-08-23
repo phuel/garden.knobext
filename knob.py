@@ -25,7 +25,7 @@ from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.uix.widget    import  Widget
 from kivy.properties    import  NumericProperty, StringProperty,\
                                 BooleanProperty, BoundedNumericProperty,\
-                                ListProperty
+                                ListProperty, AliasProperty
 import kivy.graphics as kg
 
 Builder.load_string('''
@@ -96,7 +96,7 @@ Builder.load_string('''
         Rectangle:
             pos: self.pos[0] + (self.size[0] * (1 - self.knobimg_size)) /2, self.pos[1] + (self.size[1] * (1 - self.knobimg_size)) / 2
             size: self.size[0] * (self.knobimg_size), self.size[1] * (self.knobimg_size)
-            source: self.knobimg_source
+            source: self._knobimg_source
         PopMatrix
 ''')
 
@@ -139,6 +139,14 @@ class Knob(FocusBehavior, Widget):
     knobimg_source = StringProperty("")
     '''Path of texture image that visually represents the knob. Use PNG for
     transparency support. The texture is rendered on a centered rectangle of
+    size = :attr:`size` * :attr:`knobimg_size`.
+    :attr:`knobimg_source` is a :class:`~kivy.properties.StringProperty`
+    and defaults to empty string.
+    '''
+
+    focus_knobimg_source = StringProperty("")
+    '''Path of texture image that visually represents the knob when it has keyboard focus.
+    Use PNG for transparency support. The texture is rendered on a centered rectangle of
     size = :attr:`size` * :attr:`knobimg_size`.
     :attr:`knobimg_source` is a :class:`~kivy.properties.StringProperty`
     and defaults to empty string.
@@ -225,6 +233,7 @@ class Knob(FocusBehavior, Widget):
     
     _angle = NumericProperty(0)            # Internal angle calculated from value.
 
+
     def __init__(self, *args, **kwargs):
         self.is_focusable = kwargs.get('is_focusable', True)
         super(Knob, self).__init__(*args, **kwargs)
@@ -250,6 +259,12 @@ class Knob(FocusBehavior, Widget):
             self.marker_color[3] = 0
             self.markeroff_color[3] = 0
 
+    def get_knobimg_source(self):
+        if self.selected and self.focus_knobimg_source != "":
+            return self.focus_knobimg_source
+        return self.knobimg_source
+
+    _knobimg_source = AliasProperty(get_knobimg_source, bind=['knobimg_source', 'focus_knobimg_source', 'focus'])
 
     def get_angle(self, value):
         return pow( (value - self.min)/(self.max - self.min), 1./self.curve) * self.angle_range
@@ -287,9 +302,9 @@ class Knob(FocusBehavior, Widget):
         posx, posy = touch.pos
         cx, cy     = self.center
         relx, rely = posx - cx, posy - cy
-        # Don't change the angle after clicks in the middle third of the
+        # Don't change the angle after clicks in the middle fifth of the
         # knob so that the knob can be focused with a center click.
-        if abs(relx) < self.width / 6 and abs(rely) < self.height / 6:
+        if abs(relx) < (self.width * self.knobimg_size) / 10 and abs(rely) < (self.height * self.knobimg_size) / 10:
             return
         coss = math.cos(self.start_angle / 180.0 * math.pi)
         sins = math.sin(self.start_angle / 180.0 * math.pi)
@@ -330,15 +345,16 @@ class Knob(FocusBehavior, Widget):
 
     #TO OVERRIDE
     def on_knob(self, value):
-        pass #Knob values listenerr
+        pass #Knob values listener
 
 
 class KnobWithTicks(Knob):
     """Knob widget that shows markers around the knob."""
 
     def __init__(self, ticks, *args, **kwargs):
-        """
-        """
+        '''Constructor
+        :param ticks: An array of :class:`Tick` instances to be shown around the knob.
+        '''
         self.ticks = ticks
         self.bind(size=self.position_ticks)
         self.bind(pos=self.position_ticks)
