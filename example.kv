@@ -1,4 +1,4 @@
-#:kivy 2.0
+#:kivy 1.0
 
 <Knob>:
     size_hint: None, None
@@ -9,6 +9,32 @@
 
 <BlackKnob@Knob>:
     knobimg_source: "img/knob_black.png"
+
+<DecimalTickKnob>:
+    size_hint: None, None
+    size: 150, 150
+    min: 0
+    max: 10
+    value: 0
+    start_angle: 225
+    angle_range: 270
+    knobimg_source: "img/knob_black3.png"
+    knobimg_size: 0.7
+    markeroff_color: 0, 0, 0, 1
+    show_marker: False
+
+<SymmetricTickKnob>:
+    size_hint: None, None
+    size: 150, 150
+    min: -50
+    max: 50
+    value: 0
+    start_angle: 225
+    angle_range: 270
+    knobimg_source: "img/knob_black3.png"
+    knobimg_size: 0.7
+    markeroff_color: 0, 0, 0, 1
+    show_marker: False
 
 <RangeTickKnob>:
     size_hint: None, None
@@ -122,11 +148,10 @@ GridLayout:
         ValueLabel:
             text: "%d" % testknob2.value
 
-    BoxLayout:
-        orientation: 'vertical'
-        size_hint: None, None
-        size: 150,200
-        RangeTickKnob:
-            id: testknob3
-        ValueLabel:
-            text: "%d" % testknob3.value
+    Widget:
+
+    DecimalTickKnob:
+    
+    SymmetricTickKnob:
+
+    RangeTickKnob:
