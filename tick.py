@@ -27,7 +27,7 @@ class Tick(object):
             The size of the rectangle drawn as the tick mark as a (width,height) tuple (default: ``(3,10)``)
 
         ``text``
-            The text shwon as the tick mark. If text is specified no rectangle tick mark is drawn.
+            The text shown as the tick mark. If text is specified no rectangle tick mark is drawn.
         '''
         self.angle = self._get_value('angle', None, **kwargs)
         self.value = self._get_value('value', None, **kwargs)
